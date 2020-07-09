@@ -1,3 +1,0 @@
-OmokTiles
-
-###### android, java(socket)
