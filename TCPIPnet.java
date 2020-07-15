@@ -336,6 +336,7 @@ public class TCPIPnet {
         }
     }
 
+    // 결과 확인
     public String checkResult(int a, int b){
         if(black_heightCheck(a, b) || black_widthcheck(a, b) || black_leftdiagcheck(a, b) || black_rightdiagcheck(a, b) ){
             return "blackWin";
@@ -344,8 +345,9 @@ public class TCPIPnet {
         } else if(countTiles > 169) {
             return "draw";
         } return "continue";
-    }   
+    }
 
+    //판 초기화
     public void panInit(){
         for(int i=0;i<13;i++){
             for(int j =0;j<13;j++){
@@ -354,6 +356,7 @@ public class TCPIPnet {
         }
     }
 
+    //클라이언트 입력 관리
     class GameThread extends Thread {
 
         Socket socket;
@@ -409,25 +412,25 @@ public class TCPIPnet {
                         socket = null;
                     } else {
                         String protocol = msg.split(":")[0];
-                        String message = "";
+                        String message = ""; //client에 보낼 메시지 변수
 
                         switch(protocol) {
-                            case "ENTER":
+                            case "ENTER": //client가 처음 입장했을때 
                                 System.out.println(tMan.size());
-                                tMan.sendTo(tMan.size()-1, "ORDER:"+String.valueOf(tMan.size()-1));
+                                tMan.sendTo(tMan.size()-1, "ORDER:"+String.valueOf(tMan.size()-1)); //들어온 순서대로 돌 색지정
                                 if(tMan.size()==2){
-                                    message = "START";
+                                    message = "START";  //두명 들어왔을때 게임시작-> click 잠금 풀기
                                     tMan.sendToAll(message);
                                     nowPlayer = 0;
                                 }
                                 break;
-                            case "VALUE":
+                            case "VALUE": //좌표값
                                 String value = msg.split(":")[1];
-                                int myTurn = Integer.parseInt(msg.split(":")[2]);
+                                int myTurn = Integer.parseInt(msg.split(":")[2]); // 0:black 1:white
                                 int x = Integer.parseInt(value.split(",")[0]);
                                 int y = Integer.parseInt(value.split(",")[1]);
                                 int win, lose;
-                                if(checkOrder(myTurn)){
+                                if(checkOrder(myTurn)){ //보낸 클라이언트의 순서가 맞을때
                                     if (isChecked(x, y)){
                                         tMan.sendTo(myTurn, "돌이 이미 놓여져 있습니다.");
                                     }else{
@@ -439,32 +442,47 @@ public class TCPIPnet {
                                             pan[x][y] = whiteTile;
                                             tMan.sendToAll("VALUE:"+x+","+y+":"+nowPlayer);
                                         }
-                                        if(checkResult(x,y) == "blackWin"){
-                                            System.out.println("nowplayer: "+nowPlayer+"||"+"myTurn: "+myTurn);
+                                        if(checkResult(x,y) == "blackWin"){ // 검은돌이 승리했을시
                                             win = nowPlayer;
                                             lose = ++nowPlayer;
                                             tMan.sendTo(win,"RESULT:Win!!!!!!");
                                             tMan.sendTo(lose,"RESULT:LOSE");
                                             panInit();
-                                        } else if(checkResult(x,y) == "whiteWin"){
-                                            System.out.println("nowplayer: "+nowPlayer+"||"+"myTurn: "+myTurn);
+                                        } else if(checkResult(x,y) == "whiteWin"){  // 흰돌이 승리했을시
                                             win = nowPlayer;
                                             lose = --nowPlayer;
                                             tMan.sendTo(win,"RESULT:Win!!!!!!");
                                             tMan.sendTo(lose,"RESULT:LOSE");
                                             panInit();
-                                        }else if(checkResult(x,y)=="draw"){
+                                        }else if(checkResult(x,y)=="draw"){ //무승부일때
                                             tMan.sendToAll("RESULT:DRAW");
                                             panInit();
                                         }else{
-                                            nextTurn();
+                                            nextTurn(); //nowplayer++
                                         }
                                     }
-                                } else{
+                                } else{ //현재 클라이언트의 순서가 아닐때
                                     tMan.sendTo(myTurn, "당신의 차례가 아닙니다.");
                                 }
                                 break;
-                            case "EDIT":
+                            case "EDIT": //나갈때
+                                tMan.remove(this); //Vector에 들어간 클라이언트 삭제
+                                if (reader != null)
+                                {
+                                    reader.close(); //Inputstream close
+                                }
+                                if (writer != null)
+                                {
+                                    writer.close(); //OutputStream close
+                                }
+                                if (socket != null)
+                                {
+                                    socket.close(); //Socket close
+                                }
+                                reader = null;
+                                writer = null;
+                                socket = null;
+
                                 break;
                         }
                     }
@@ -472,7 +490,7 @@ public class TCPIPnet {
 
             } catch(IOException e){
                 e.printStackTrace();
-            }catch (Exception e) {
+            }catch (Exception e) {  
                 try{
                     tMan.remove(this);
                     if(reader != null){
@@ -524,9 +542,9 @@ public class TCPIPnet {
             }
         }
         
-        //Client에게 메시지 보내기
+        //클라이언트에게 메시지 보내기
         void sendTo(int i, String msg){
-            try{ 
+            try{
                 PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(getSocket(i).getOutputStream())));
                 writer.println(msg);
                 writer.flush();
@@ -537,6 +555,7 @@ public class TCPIPnet {
             }
         }
 
+        //접속한 모든 클라이언트에게
         void sendToAll(String msg){
             for(int i=0; i < size(); i++) {
                 sendTo(i, msg);
